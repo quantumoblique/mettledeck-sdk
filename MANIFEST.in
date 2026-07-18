@@ -1,0 +1,6 @@
+include CHANGELOG.md
+include LICENSE
+recursive-include examples *.py
+recursive-include openapi *.json
+recursive-include scripts *.py
+recursive-include tests *.py

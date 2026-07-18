@@ -1,0 +1,159 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MettleDeck Local API",
+    "version": "1.0.0",
+    "description": "Loopback-only task automation API for MettleDeck."
+  },
+  "servers": [{ "url": "http://127.0.0.1:{port}", "variables": { "port": { "default": "0" } } }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "VersionInfo": {
+        "type": "object",
+        "required": ["application_version", "supported_api_versions", "preferred_api_version"],
+        "properties": {
+          "application_version": { "type": "string" },
+          "supported_api_versions": { "type": "array", "items": { "type": "integer" } },
+          "preferred_api_version": { "type": "integer" }
+        }
+      },
+      "CreateTask": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": ["string", "null"], "description": "Markdown description." },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "impact": { "type": ["integer", "null"], "minimum": 1, "maximum": 4 },
+          "difficulty": { "type": ["integer", "null"], "minimum": 1, "maximum": 4 },
+          "progress": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "time_estimate": { "type": ["number", "null"], "enum": [0.5, 1, 2, 3, 4, 5, 6, null] },
+          "planning_description_hidden": { "type": "boolean", "default": false },
+          "workspace": { "type": "string", "enum": ["kanban", "planning"], "default": "kanban" },
+          "column": { "type": "string" },
+          "planning_lane": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "position": { "type": "string", "enum": ["top", "bottom"], "default": "top" },
+          "before_task": { "type": "string" },
+          "after_task": { "type": "string" }
+        }
+      },
+      "UpdateTask": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": ["string", "null"] },
+          "tags": { "type": ["array", "null"], "items": { "type": "string" } },
+          "add_tags": { "type": "array", "items": { "type": "string" } },
+          "remove_tags": { "type": "array", "items": { "type": "string" } },
+          "impact": { "type": ["integer", "null"], "minimum": 1, "maximum": 4 },
+          "difficulty": { "type": ["integer", "null"], "minimum": 1, "maximum": 4 },
+          "progress": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "time_estimate": { "type": ["number", "null"] },
+          "planning_description_hidden": { "type": ["boolean", "null"] },
+          "clear_media": { "type": "boolean" },
+          "remove_attachments": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "MoveTask": {
+        "type": "object",
+        "required": ["workspace"],
+        "properties": {
+          "workspace": { "type": "string", "enum": ["kanban", "planning"] },
+          "column": { "type": "string" },
+          "planning_lane": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "position": { "type": "string", "enum": ["top", "bottom"] },
+          "before_task": { "type": "string" },
+          "after_task": { "type": "string" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "details": {}
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/version": {
+      "get": {
+        "security": [],
+        "operationId": "getVersion",
+        "responses": { "200": { "description": "Supported versions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VersionInfo" } } } } }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": { "operationId": "getOpenApi", "responses": { "200": { "description": "OpenAPI document" } } }
+    },
+    "/api/v1/projects": {
+      "get": { "operationId": "listProjects", "responses": { "200": { "description": "Projects" } } }
+    },
+    "/api/v1/projects/{project}": {
+      "get": {
+        "operationId": "getProject",
+        "parameters": [{ "name": "project", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Project structure" } }
+      }
+    },
+    "/api/v1/projects/{project}/tasks": {
+      "get": {
+        "operationId": "listTasks",
+        "parameters": [
+          { "name": "project", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "workspace", "in": "query", "schema": { "type": "string", "enum": ["kanban", "planning"] } },
+          { "name": "column", "in": "query", "schema": { "type": "string" } },
+          { "name": "planning_lane", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 5 } },
+          { "name": "tags", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Tasks" }, "304": { "description": "Revision unchanged" } }
+      },
+      "post": {
+        "operationId": "createTask",
+        "parameters": [
+          { "name": "project", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "Idempotency-Key", "in": "header", "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTask" } }, "multipart/form-data": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "Created task" } }
+      }
+    },
+    "/api/v1/projects/{project}/tasks/{task_id}": {
+      "get": {
+        "operationId": "getTask",
+        "parameters": [
+          { "name": "project", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "task_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "include_history", "in": "query", "schema": { "type": "boolean", "default": false } }
+        ],
+        "responses": { "200": { "description": "Task" } }
+      },
+      "patch": {
+        "operationId": "updateTask",
+        "parameters": [
+          { "name": "project", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "task_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateTask" } }, "multipart/form-data": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "Updated task" } }
+      }
+    },
+    "/api/v1/projects/{project}/tasks/{task_id}/position": {
+      "patch": {
+        "operationId": "moveTask",
+        "parameters": [
+          { "name": "project", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "task_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MoveTask" } } } },
+        "responses": { "200": { "description": "Moved task" } }
+      }
+    }
+  }
+}
